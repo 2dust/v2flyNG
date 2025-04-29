@@ -7,6 +7,7 @@ import com.v2ray.ang.dto.NetworkType
 import com.v2ray.ang.dto.ProfileItem
 import com.v2ray.ang.dto.V2rayConfig.OutboundBean
 import com.v2ray.ang.extension.idnHost
+import com.v2ray.ang.handler.V2rayConfigManager
 import com.v2ray.ang.util.Utils
 import java.net.URI
 
@@ -131,7 +132,7 @@ object ShadowsocksFmt : FmtBase() {
      * @return the converted OutboundBean object, or null if conversion fails
      */
     fun toOutbound(profileItem: ProfileItem): OutboundBean? {
-        val outboundBean = OutboundBean.create(EConfigType.SHADOWSOCKS)
+        val outboundBean = V2rayConfigManager.createInitOutbound(EConfigType.SHADOWSOCKS)
 
         outboundBean?.settings?.servers?.first()?.let { server ->
             server.address = profileItem.server.orEmpty()
@@ -140,29 +141,13 @@ object ShadowsocksFmt : FmtBase() {
             server.method = profileItem.method
         }
 
-        val sni = outboundBean?.streamSettings?.populateTransportSettings(
-            profileItem.network.orEmpty(),
-            profileItem.headerType,
-            profileItem.host,
-            profileItem.path,
-            profileItem.seed,
-            profileItem.quicSecurity,
-            profileItem.quicKey,
-            profileItem.mode,
-            profileItem.serviceName,
-            profileItem.authority,
-        )
+        val sni = outboundBean?.streamSettings?.let {
+            V2rayConfigManager.populateTransportSettings(it, profileItem)
+        }
 
-        outboundBean?.streamSettings?.populateTlsSettings(
-            profileItem.security.orEmpty(),
-            profileItem.insecure == true,
-            if (profileItem.sni.isNullOrEmpty()) sni else profileItem.sni,
-            profileItem.fingerPrint,
-            profileItem.alpn,
-            profileItem.publicKey,
-            profileItem.shortId,
-            profileItem.spiderX,
-        )
+        outboundBean?.streamSettings?.let {
+            V2rayConfigManager.populateTlsSettings(it, profileItem, sni)
+        }
 
         return outboundBean
     }

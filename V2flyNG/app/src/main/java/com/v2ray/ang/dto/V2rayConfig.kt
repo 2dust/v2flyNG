@@ -1,25 +1,14 @@
 package com.v2ray.ang.dto
 
-import android.text.TextUtils
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonPrimitive
-import com.google.gson.JsonSerializationContext
-import com.google.gson.JsonSerializer
 import com.google.gson.annotations.SerializedName
-import com.google.gson.reflect.TypeToken
 import com.v2ray.ang.AppConfig
-import com.v2ray.ang.dto.V2rayConfig.OutboundBean.OutSettingsBean.ServersBean
-import com.v2ray.ang.dto.V2rayConfig.OutboundBean.OutSettingsBean.VnextBean
-import com.v2ray.ang.dto.V2rayConfig.OutboundBean.OutSettingsBean.VnextBean.UsersBean
-import com.v2ray.ang.dto.V2rayConfig.OutboundBean.OutSettingsBean.WireGuardBean
 import com.v2ray.ang.util.Utils
-import java.lang.reflect.Type
 
 data class V2rayConfig(
     var remarks: String? = null,
     var stats: Any? = null,
     val log: LogBean,
-    var policy: PolicyBean?,
+    var policy: PolicyBean? = null,
     val inbounds: ArrayList<InboundBean>,
     var outbounds: ArrayList<OutboundBean>,
     var dns: DnsBean? = null,
@@ -34,9 +23,9 @@ data class V2rayConfig(
 ) {
 
     data class LogBean(
-        val access: String,
-        val error: String,
-        var loglevel: String?,
+        val access: String? = null,
+        val error: String? = null,
+        var loglevel: String? = null,
         val dnsLog: Boolean? = null
     )
 
@@ -46,7 +35,7 @@ data class V2rayConfig(
         var protocol: String,
         var listen: String? = null,
         val settings: Any? = null,
-        val sniffing: SniffingBean?,
+        val sniffing: SniffingBean? = null,
         val streamSettings: Any? = null,
         val allocate: Any? = null
     ) {
@@ -77,50 +66,6 @@ data class V2rayConfig(
         val sendThrough: String? = null,
         var mux: MuxBean? = MuxBean(false)
     ) {
-        companion object {
-            fun create(configType: EConfigType): OutboundBean? {
-                return when (configType) {
-                    EConfigType.VMESS,
-                    EConfigType.VLESS ->
-                        return OutboundBean(
-                            protocol = configType.name.lowercase(),
-                            settings = OutSettingsBean(
-                                vnext = listOf(
-                                    VnextBean(
-                                        users = listOf(UsersBean())
-                                    )
-                                )
-                            ),
-                            streamSettings = StreamSettingsBean()
-                        )
-
-                    EConfigType.SHADOWSOCKS,
-                    EConfigType.SOCKS,
-                    EConfigType.HTTP,
-                    EConfigType.TROJAN,
-                    EConfigType.HYSTERIA2 ->
-                        return OutboundBean(
-                            protocol = configType.name.lowercase(),
-                            settings = OutSettingsBean(
-                                servers = listOf(ServersBean())
-                            ),
-                            streamSettings = StreamSettingsBean()
-                        )
-
-                    EConfigType.WIREGUARD ->
-                        return OutboundBean(
-                            protocol = configType.name.lowercase(),
-                            settings = OutSettingsBean(
-                                secretKey = "",
-                                peers = listOf(WireGuardBean())
-                            )
-                        )
-
-                    EConfigType.CUSTOM -> null
-                }
-            }
-        }
-
         data class OutSettingsBean(
             var vnext: List<VnextBean>? = null,
             var fragment: FragmentBean? = null,
@@ -197,7 +142,7 @@ data class V2rayConfig(
 
             data class WireGuardBean(
                 var publicKey: String = "",
-                var preSharedKey: String = "",
+                var preSharedKey: String? = null,
                 var endpoint: String = ""
             )
         }
@@ -299,7 +244,8 @@ data class V2rayConfig(
                 var tcpFastOpen: Boolean? = null,
                 var tproxy: String? = null,
                 var mark: Int? = null,
-                var dialerProxy: String? = null
+                var dialerProxy: String? = null,
+                var domainStrategy: String? = null
             )
 
             data class TlsSettingsBean(
@@ -349,139 +295,6 @@ data class V2rayConfig(
                 )
             }
 
-            fun populateTransportSettings(
-                transport: String,
-                headerType: String?,
-                host: String?,
-                path: String?,
-                seed: String?,
-                quicSecurity: String?,
-                key: String?,
-                mode: String?,
-                serviceName: String?,
-                authority: String?
-            ): String? {
-                var sni: String? = null
-                network = if (transport.isEmpty()) NetworkType.TCP.type else transport
-                when (network) {
-                    NetworkType.TCP.type -> {
-                        val tcpSetting = TcpSettingsBean()
-                        if (headerType == AppConfig.HEADER_TYPE_HTTP) {
-                            tcpSetting.header.type = AppConfig.HEADER_TYPE_HTTP
-                            if (!TextUtils.isEmpty(host) || !TextUtils.isEmpty(path)) {
-                                val requestObj = TcpSettingsBean.HeaderBean.RequestBean()
-                                requestObj.headers.Host = host.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                requestObj.path = path.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                tcpSetting.header.request = requestObj
-                                sni = requestObj.headers.Host?.getOrNull(0)
-                            }
-                        } else {
-                            tcpSetting.header.type = "none"
-                            sni = host
-                        }
-                        tcpSettings = tcpSetting
-                    }
-
-                    NetworkType.KCP.type -> {
-                        val kcpsetting = KcpSettingsBean()
-                        kcpsetting.header.type = headerType ?: "none"
-                        if (seed.isNullOrEmpty()) {
-                            kcpsetting.seed = null
-                        } else {
-                            kcpsetting.seed = seed
-                        }
-                        if (host.isNullOrEmpty()) {
-                            kcpsetting.header.domain = null
-                        } else {
-                            kcpsetting.header.domain = host
-                        }
-                        kcpSettings = kcpsetting
-                    }
-
-                    NetworkType.WS.type -> {
-                        val wssetting = WsSettingsBean()
-                        wssetting.headers.Host = host.orEmpty()
-                        sni = host
-                        wssetting.path = path ?: "/"
-                        wsSettings = wssetting
-                    }
-
-                    NetworkType.HTTP_UPGRADE.type -> {
-                        val httpupgradeSetting = HttpupgradeSettingsBean()
-                        httpupgradeSetting.host = host.orEmpty()
-                        sni = host
-                        httpupgradeSetting.path = path ?: "/"
-                        httpupgradeSettings = httpupgradeSetting
-                    }
-
-                    NetworkType.XHTTP.type -> {
-                        val xhttpSetting = XhttpSettingsBean()
-                        xhttpSetting.host = host.orEmpty()
-                        sni = host
-                        xhttpSetting.path = path ?: "/"
-                        xhttpSettings = xhttpSetting
-                    }
-
-                    NetworkType.H2.type, NetworkType.HTTP.type -> {
-                        network = NetworkType.H2.type
-                        val h2Setting = HttpSettingsBean()
-                        h2Setting.host = host.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                        sni = h2Setting.host.getOrNull(0)
-                        h2Setting.path = path ?: "/"
-                        httpSettings = h2Setting
-                    }
-
-//                    "quic" -> {
-//                        val quicsetting = QuicSettingBean()
-//                        quicsetting.security = quicSecurity ?: "none"
-//                        quicsetting.key = key.orEmpty()
-//                        quicsetting.header.type = headerType ?: "none"
-//                        quicSettings = quicsetting
-//                    }
-
-                    NetworkType.GRPC.type -> {
-                        val grpcSetting = GrpcSettingsBean()
-                        grpcSetting.multiMode = mode == "multi"
-                        grpcSetting.serviceName = serviceName.orEmpty()
-                        grpcSetting.authority = authority.orEmpty()
-                        grpcSetting.idle_timeout = 60
-                        grpcSetting.health_check_timeout = 20
-                        sni = authority
-                        grpcSettings = grpcSetting
-                    }
-                }
-                return sni
-            }
-
-            fun populateTlsSettings(
-                streamSecurity: String,
-                allowInsecure: Boolean,
-                sni: String?,
-                fingerprint: String?,
-                alpns: String?,
-                publicKey: String?,
-                shortId: String?,
-                spiderX: String?
-            ) {
-                security = if (streamSecurity.isEmpty()) null else streamSecurity
-                if (security == null) return
-                val tlsSetting = TlsSettingsBean(
-                    allowInsecure = allowInsecure,
-                    serverName = if (sni.isNullOrEmpty()) null else sni,
-                    fingerprint = if (fingerprint.isNullOrEmpty()) null else fingerprint,
-                    alpn = if (alpns.isNullOrEmpty()) null else alpns.split(",").map { it.trim() }.filter { it.isNotEmpty() },
-                    publicKey = if (publicKey.isNullOrEmpty()) null else publicKey,
-                    shortId = if (shortId.isNullOrEmpty()) null else shortId,
-                    spiderX = if (spiderX.isNullOrEmpty()) null else spiderX,
-                )
-                if (security == AppConfig.TLS) {
-                    tlsSettings = tlsSetting
-                    realitySettings = null
-                } else if (security == AppConfig.REALITY) {
-                    tlsSettings = null
-                    realitySettings = tlsSetting
-                }
-            }
         }
 
         data class MuxBean(
@@ -647,6 +460,18 @@ data class V2rayConfig(
             }
             return null
         }
+
+        fun ensureSockopt(): V2rayConfig.OutboundBean.StreamSettingsBean.SockoptBean {
+            val stream = streamSettings ?: V2rayConfig.OutboundBean.StreamSettingsBean().also {
+                streamSettings = it
+            }
+
+            val sockopt = stream.sockopt ?: V2rayConfig.OutboundBean.StreamSettingsBean.SockoptBean().also {
+                stream.sockopt = it
+            }
+
+            return sockopt
+        }
     }
 
     data class DnsBean(
@@ -723,15 +548,9 @@ data class V2rayConfig(
         return null
     }
 
-    fun toPrettyPrinting(): String {
-        return GsonBuilder()
-            .setPrettyPrinting()
-            .disableHtmlEscaping()
-            .registerTypeAdapter( // custom serialiser is needed here since JSON by default parse number as Double, core will fail to start
-                object : TypeToken<Double>() {}.type,
-                JsonSerializer { src: Double?, _: Type?, _: JsonSerializationContext? -> JsonPrimitive(src?.toInt()) }
-            )
-            .create()
-            .toJson(this)
+    fun getAllProxyOutbound(): List<OutboundBean> {
+        return outbounds.filter { outbound ->
+            EConfigType.entries.any { it.name.equals(outbound.protocol, ignoreCase = true) }
+        }
     }
 }

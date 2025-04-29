@@ -7,6 +7,7 @@ import com.v2ray.ang.dto.ProfileItem
 import com.v2ray.ang.dto.V2rayConfig.OutboundBean
 import com.v2ray.ang.extension.idnHost
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.handler.V2rayConfigManager
 import com.v2ray.ang.util.Utils
 import java.net.URI
 
@@ -60,7 +61,7 @@ object TrojanFmt : FmtBase() {
      * @return the converted OutboundBean object, or null if conversion fails
      */
     fun toOutbound(profileItem: ProfileItem): OutboundBean? {
-        val outboundBean = OutboundBean.create(EConfigType.TROJAN)
+        val outboundBean = V2rayConfigManager.createInitOutbound(EConfigType.TROJAN)
 
         outboundBean?.settings?.servers?.first()?.let { server ->
             server.address = profileItem.server.orEmpty()
@@ -69,29 +70,13 @@ object TrojanFmt : FmtBase() {
             server.flow = profileItem.flow
         }
 
-        val sni = outboundBean?.streamSettings?.populateTransportSettings(
-            profileItem.network.orEmpty(),
-            profileItem.headerType,
-            profileItem.host,
-            profileItem.path,
-            profileItem.seed,
-            profileItem.quicSecurity,
-            profileItem.quicKey,
-            profileItem.mode,
-            profileItem.serviceName,
-            profileItem.authority,
-        )
+        val sni = outboundBean?.streamSettings?.let {
+            V2rayConfigManager.populateTransportSettings(it, profileItem)
+        }
 
-        outboundBean?.streamSettings?.populateTlsSettings(
-            profileItem.security.orEmpty(),
-            profileItem.insecure == true,
-            if (profileItem.sni.isNullOrEmpty()) sni else profileItem.sni,
-            profileItem.fingerPrint,
-            profileItem.alpn,
-            profileItem.publicKey,
-            profileItem.shortId,
-            profileItem.spiderX,
-        )
+        outboundBean?.streamSettings?.let {
+            V2rayConfigManager.populateTlsSettings(it, profileItem, sni)
+        }
 
         return outboundBean
     }

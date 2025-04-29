@@ -9,12 +9,13 @@ import com.v2ray.ang.util.Utils.urlDecode
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.IDN
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URL
 
 object HttpUtil {
-
 
     /**
      * Converts a URL string to its ASCII representation.
@@ -32,6 +33,45 @@ object HttpUtil {
             return str
         }
     }
+
+    /**
+     * Resolves a hostname to an IP address, returns original input if it's already an IP
+     *
+     * @param host The hostname or IP address to resolve
+     * @param ipv6Preferred Whether to prefer IPv6 addresses, defaults to false
+     * @return The resolved IP address or the original input (if it's already an IP or resolution fails)
+     */
+    fun resolveHostToIP(host: String, ipv6Preferred: Boolean = false): List<String>? {
+        try {
+            // If it's already an IP address, return it as a list
+            if (Utils.isPureIpAddress(host)) {
+                return null
+            }
+
+            // Get all IP addresses
+            val addresses = InetAddress.getAllByName(host)
+            if (addresses.isEmpty()) {
+                return null
+            }
+
+            // Sort addresses based on preference
+            val sortedAddresses = if (ipv6Preferred) {
+                addresses.sortedWith(compareByDescending { it is Inet6Address })
+            } else {
+                addresses.sortedWith(compareBy { it is Inet6Address })
+            }
+
+            val ipList = sortedAddresses.mapNotNull { it.hostAddress }
+
+            Log.i(AppConfig.TAG, "Resolved IPs for $host: ${ipList.joinToString()}")
+
+            return ipList
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "Failed to resolve host to IP", e)
+            return null
+        }
+    }
+
 
     /**
      * Retrieves the content of a URL as a string.
@@ -70,7 +110,7 @@ object HttpUtil {
         while (redirects++ < maxRedirects) {
             if (currentUrl == null) continue
             val conn = createProxyConnection(currentUrl, httpPort, timeout, timeout) ?: continue
-            conn.setRequestProperty("User-agent", "v2rayNG/${BuildConfig.VERSION_NAME}")
+            conn.setRequestProperty("User-agent", "v2flyNG/${BuildConfig.VERSION_NAME}")
             conn.connect()
 
             val responseCode = conn.responseCode

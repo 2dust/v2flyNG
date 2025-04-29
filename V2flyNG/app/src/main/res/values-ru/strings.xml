@@ -172,7 +172,7 @@
     <string name="summary_pref_fake_dns_enabled">Локальная DNS возвращает поддельные IP-адреса (быстрее, но может не работать с некоторыми приложениями)</string>
 
     <string name="title_pref_prefer_ipv6">Предпочитать IPv6</string>
-    <string name="summary_pref_prefer_ipv6">Предпочитать IPv6-адреса и маршрутизацию</string>
+    <string name="summary_pref_prefer_ipv6">Использовать маршрутизацию IPv6 предпочитать IPv6-адреса</string>
 
     <string name="title_pref_remote_dns">Удалённая DNS (UDP/TCP/HTTPS/QUIC) (необязательно)</string>
     <string name="summary_pref_remote_dns">DNS</string>
@@ -257,9 +257,10 @@
     <string name="sub_setting_filter">Название фильтра</string>
     <string name="sub_setting_enable">Использовать обновление</string>
     <string name="sub_auto_update">Использовать автообновление</string>
-    <string name="sub_setting_pre_profile">Название предыдущего прокси</string>
-    <string name="sub_setting_next_profile">Название следующего прокси</string>
-    <string name="sub_setting_pre_profile_tip">Название должно существовать и быть уникальным</string>
+    <string name="sub_allow_insecure_url">Разрешать незащищённые HTTP-адреса</string>
+    <string name="sub_setting_pre_profile">Предыдущая конфигурация прокси</string>
+    <string name="sub_setting_next_profile">Следующая конфигурация прокси</string>
+    <string name="sub_setting_pre_profile_tip">Конфигурация должна быть уникальной</string>
     <string name="title_sub_update">Обновить подписку группы</string>
     <string name="title_ping_all_server">Проверка профилей группы</string>
     <string name="title_real_ping_all_server">Время отклика профилей группы</string>
@@ -302,7 +303,7 @@
     <string name="connection_test_pending">Проверить подключение</string>
     <string name="connection_test_testing">Проверка…</string>
     <string name="connection_test_testing_count">Проверка профилей (%d)</string>
-    <string name="connection_test_available">Успешно: HTTP-соединение заняло %d мс</string>
+    <string name="connection_test_available">Успешно: соединение заняло %d мс</string>
     <string name="connection_test_error">Сбой проверки интернет-соединения: %s</string>
     <string name="connection_test_fail">Интернет недоступен</string>
     <string name="connection_test_error_status_code">Код ошибки: #%d</string>
@@ -321,7 +322,7 @@
     <string name="update_already_latest_version">Установлена последняя версия</string>
     <string name="update_new_version_found">Найдена новая версия: %s</string>
     <string name="update_now">Обновить</string>
-    <string name="update_check_pre_release">Проверить предварительный выпуск</string>
+    <string name="update_check_pre_release">Искать предварительный выпуск</string>
 
     <string-array name="share_method">
         <item>QR-код</item>
