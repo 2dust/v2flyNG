@@ -110,7 +110,7 @@ object HttpUtil {
         while (redirects++ < maxRedirects) {
             if (currentUrl == null) continue
             val conn = createProxyConnection(currentUrl, httpPort, timeout, timeout) ?: continue
-            conn.setRequestProperty("User-agent", "v2flyNG/${BuildConfig.VERSION_NAME}")
+            conn.setRequestProperty("User-agent", "v2rayNG/${BuildConfig.VERSION_NAME}")
             conn.connect()
 
             val responseCode = conn.responseCode
