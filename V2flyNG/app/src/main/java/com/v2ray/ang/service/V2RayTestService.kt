@@ -24,7 +24,7 @@ import libv2ray.Libv2ray
 import java.util.concurrent.Executors
 
 class V2RayTestService : Service() {
-    private val realTestScope by lazy { CoroutineScope(Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()).asCoroutineDispatcher()) }
+    private val realTestScope by lazy { CoroutineScope(Dispatchers.IO) }
 
     /**
      * Initializes the V2Ray environment.
