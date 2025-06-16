@@ -16,15 +16,16 @@ import com.v2ray.ang.util.PluginUtil
 import com.v2ray.ang.util.Utils
 import go.Seq
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import libv2ray.Libv2ray
-import java.util.concurrent.Executors
 
 class V2RayTestService : Service() {
-    private val realTestScope by lazy { CoroutineScope(Dispatchers.IO) }
+    private val realTestScope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
 
     /**
      * Initializes the V2Ray environment.
@@ -57,6 +58,14 @@ class V2RayTestService : Service() {
             }
         }
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    /**
+     * Cleans up coroutines
+     */
+    override fun onDestroy() {
+        super.onDestroy()
+        realTestScope.cancel() // Cancel the entire scope and its children
     }
 
     /**
