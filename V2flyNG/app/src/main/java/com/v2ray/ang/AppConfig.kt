@@ -26,6 +26,7 @@ object AppConfig {
     const val PREF_LOCAL_DNS_PORT = "pref_local_dns_port"
     const val PREF_VPN_DNS = "pref_vpn_dns"
     const val PREF_VPN_BYPASS_LAN = "pref_vpn_bypass_lan"
+    const val PREF_VPN_INTERFACE_ADDRESS_CONFIG_INDEX = "pref_vpn_interface_address_config_index"
     const val PREF_ROUTING_DOMAIN_STRATEGY = "pref_routing_domain_strategy"
     const val PREF_ROUTING_RULESET = "pref_routing_ruleset"
     const val PREF_MUX_ENABLED = "pref_mux_enabled"
@@ -55,6 +56,7 @@ object AppConfig {
     const val PREF_DNS_HOSTS = "pref_dns_hosts"
     const val PREF_DELAY_TEST_URL = "pref_delay_test_url"
     const val PREF_LOGLEVEL = "pref_core_loglevel"
+    const val PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD = "pref_outbound_domain_resolve_method"
     const val PREF_MODE = "pref_mode"
     const val PREF_IS_BOOTED = "pref_is_booted"
     const val PREF_CHECK_UPDATE_PRE_RELEASE = "pref_check_update_pre_release"
@@ -168,7 +170,9 @@ object AppConfig {
     // Android Private DNS constants
     const val DNS_DNSPOD_DOMAIN = "dot.pub"
     const val DNS_ALIDNS_DOMAIN = "dns.alidns.com"
-    const val DNS_CLOUDFLARE_DOMAIN = "one.one.one.one"
+    const val DNS_CLOUDFLARE_ONE_DOMAIN = "one.one.one.one"
+    const val DNS_CLOUDFLARE_DNS_COM_DOMAIN = "dns.cloudflare.com"
+    const val DNS_CLOUDFLARE_DNS_DOMAIN = "cloudflare-dns.com"
     const val DNS_GOOGLE_DOMAIN = "dns.google"
     const val DNS_QUAD9_DOMAIN = "dns.quad9.net"
     const val DNS_YANDEX_DOMAIN = "common.dot.dns.yandex.net"
@@ -182,14 +186,16 @@ object AppConfig {
     const val HEADER_TYPE_HTTP = "http"
 
     val DNS_ALIDNS_ADDRESSES = arrayListOf("223.5.5.5", "223.6.6.6", "2400:3200::1", "2400:3200:baba::1")
-    val DNS_CLOUDFLARE_ADDRESSES = arrayListOf("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001")
+    val DNS_CLOUDFLARE_ONE_ADDRESSES = arrayListOf("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001")
+    val DNS_CLOUDFLARE_DNS_COM_ADDRESSES = arrayListOf("104.16.132.229", "104.16.133.229", "2606:4700::6810:84e5", "2606:4700::6810:85e5")
+    val DNS_CLOUDFLARE_DNS_ADDRESSES = arrayListOf("104.16.248.249", "104.16.249.249", "2606:4700::6810:f8f9", "2606:4700::6810:f9f9")
     val DNS_DNSPOD_ADDRESSES = arrayListOf("1.12.12.12", "120.53.53.53")
     val DNS_GOOGLE_ADDRESSES = arrayListOf("8.8.8.8", "8.8.4.4", "2001:4860:4860::8888", "2001:4860:4860::8844")
     val DNS_QUAD9_ADDRESSES = arrayListOf("9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9")
     val DNS_YANDEX_ADDRESSES = arrayListOf("77.88.8.8", "77.88.8.1", "2a02:6b8::feed:0ff", "2a02:6b8:0:1::feed:0ff")
 
     //minimum list https://serverfault.com/a/304791
-    val BYPASS_PRIVATE_IP_LIST = arrayListOf(
+    val ROUTED_IP_LIST = arrayListOf(
         "0.0.0.0/5",
         "8.0.0.0/7",
         "11.0.0.0/8",

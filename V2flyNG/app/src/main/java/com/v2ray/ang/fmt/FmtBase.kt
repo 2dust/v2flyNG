@@ -4,6 +4,8 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.NetworkType
 import com.v2ray.ang.dto.ProfileItem
 import com.v2ray.ang.extension.isNotNullEmpty
+import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.util.HttpUtil
 import com.v2ray.ang.util.Utils
 import java.net.URI
 
@@ -26,7 +28,7 @@ open class FmtBase {
         val url = String.format(
             "%s@%s:%s",
             Utils.urlEncode(userInfo ?: ""),
-            Utils.getIpv6Address(config.server),
+            Utils.getIpv6Address(HttpUtil.toIdnDomain(config.server.orEmpty())),
             config.serverPort
         )
 
@@ -147,5 +149,22 @@ open class FmtBase {
         }
 
         return dicQuery
+    }
+
+    fun getServerAddress(profileItem: ProfileItem): String {
+        if (Utils.isPureIpAddress(profileItem.server.orEmpty())) {
+            return profileItem.server.orEmpty()
+        }
+
+        val domain = HttpUtil.toIdnDomain(profileItem.server.orEmpty())
+        if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, "1") != "2") {
+            return domain
+        }
+        //Resolve and replace domain
+        val resolvedIps = HttpUtil.resolveHostToIP(domain, MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6))
+        if (resolvedIps.isNullOrEmpty()) {
+            return domain
+        }
+        return resolvedIps.first()
     }
 }

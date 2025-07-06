@@ -16,7 +16,6 @@ import com.v2ray.ang.dto.V2rayConfig.OutboundBean.StreamSettingsBean
 import com.v2ray.ang.dto.V2rayConfig.RoutingBean.RulesBean
 import com.v2ray.ang.extension.isNotNullEmpty
 import com.v2ray.ang.fmt.HttpFmt
-import com.v2ray.ang.fmt.Hysteria2Fmt
 import com.v2ray.ang.fmt.ShadowsocksFmt
 import com.v2ray.ang.fmt.SocksFmt
 import com.v2ray.ang.fmt.TrojanFmt
@@ -98,7 +97,7 @@ object V2rayConfigManager {
         val result = ConfigResult(false)
 
         val address = config.server ?: return result
-        if (!Utils.isIpAddress(address)) {
+        if (!Utils.isPureIpAddress(address)) {
             if (!Utils.isValidUrl(address)) {
                 Log.w(AppConfig.TAG, "$address is an invalid ip or domain")
                 return result
@@ -132,7 +131,10 @@ object V2rayConfigManager {
             v2rayConfig.policy = null
         }
 
-        resolveOutboundDomainsToHosts(v2rayConfig)
+        //Resolve and add to DNS Hosts
+        if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, "1") == "1") {
+            resolveOutboundDomainsToHosts(v2rayConfig)
+        }
 
         result.status = true
         result.content = JsonUtil.toJsonPretty(v2rayConfig) ?: ""
@@ -152,7 +154,7 @@ object V2rayConfigManager {
         val result = ConfigResult(false)
 
         val address = config.server ?: return result
-        if (!Utils.isIpAddress(address)) {
+        if (!Utils.isPureIpAddress(address)) {
             if (!Utils.isValidUrl(address)) {
                 Log.w(AppConfig.TAG, "$address is an invalid ip or domain")
                 return result
@@ -479,6 +481,25 @@ object V2rayConfigManager {
                 )
             }
 
+            //block dns
+            val blkDomain = getUserRule2Domain(AppConfig.TAG_BLOCKED)
+            if (blkDomain.isNotEmpty()) {
+                hosts.putAll(blkDomain.map { it to AppConfig.LOOPBACK })
+            }
+
+            // hardcode googleapi rule to fix play store problems
+            hosts[AppConfig.GOOGLEAPIS_CN_DOMAIN] = AppConfig.GOOGLEAPIS_COM_DOMAIN
+
+            // hardcode popular Android Private DNS rule to fix localhost DNS problem
+            hosts[AppConfig.DNS_ALIDNS_DOMAIN] = AppConfig.DNS_ALIDNS_ADDRESSES
+            hosts[AppConfig.DNS_CLOUDFLARE_ONE_DOMAIN] = AppConfig.DNS_CLOUDFLARE_ONE_ADDRESSES
+            hosts[AppConfig.DNS_CLOUDFLARE_DNS_COM_DOMAIN] = AppConfig.DNS_CLOUDFLARE_DNS_COM_ADDRESSES
+            hosts[AppConfig.DNS_CLOUDFLARE_DNS_DOMAIN] = AppConfig.DNS_CLOUDFLARE_DNS_ADDRESSES
+            hosts[AppConfig.DNS_DNSPOD_DOMAIN] = AppConfig.DNS_DNSPOD_ADDRESSES
+            hosts[AppConfig.DNS_GOOGLE_DOMAIN] = AppConfig.DNS_GOOGLE_ADDRESSES
+            hosts[AppConfig.DNS_QUAD9_DOMAIN] = AppConfig.DNS_QUAD9_ADDRESSES
+            hosts[AppConfig.DNS_YANDEX_DOMAIN] = AppConfig.DNS_YANDEX_ADDRESSES
+
             //User DNS hosts
             try {
                 val userHosts = MmkvManager.decodeSettingsString(AppConfig.PREF_DNS_HOSTS)
@@ -492,24 +513,6 @@ object V2rayConfigManager {
             } catch (e: Exception) {
                 Log.e(AppConfig.TAG, "Failed to configure user DNS hosts", e)
             }
-
-            //block dns
-            val blkDomain = getUserRule2Domain(AppConfig.TAG_BLOCKED)
-            if (blkDomain.isNotEmpty()) {
-                hosts.putAll(blkDomain.map { it to AppConfig.LOOPBACK })
-            }
-
-            // hardcode googleapi rule to fix play store problems
-            hosts[AppConfig.GOOGLEAPIS_CN_DOMAIN] = AppConfig.GOOGLEAPIS_COM_DOMAIN
-
-            // hardcode popular Android Private DNS rule to fix localhost DNS problem
-            hosts[AppConfig.DNS_ALIDNS_DOMAIN] = AppConfig.DNS_ALIDNS_ADDRESSES
-            hosts[AppConfig.DNS_CLOUDFLARE_DOMAIN] = AppConfig.DNS_CLOUDFLARE_ADDRESSES
-            hosts[AppConfig.DNS_DNSPOD_DOMAIN] = AppConfig.DNS_DNSPOD_ADDRESSES
-            hosts[AppConfig.DNS_GOOGLE_DOMAIN] = AppConfig.DNS_GOOGLE_ADDRESSES
-            hosts[AppConfig.DNS_QUAD9_DOMAIN] = AppConfig.DNS_QUAD9_ADDRESSES
-            hosts[AppConfig.DNS_YANDEX_DOMAIN] = AppConfig.DNS_YANDEX_ADDRESSES
-
 
             // DNS dns
             v2rayConfig.dns = V2rayConfig.DnsBean(
@@ -828,7 +831,11 @@ object V2rayConfigManager {
         for (item in proxyOutboundList) {
             val domain = item.getServerAddress()
             if (domain.isNullOrEmpty()) continue
-            if (newHosts.containsKey(domain)) continue
+
+            if (newHosts.containsKey(domain)) {
+                item.ensureSockopt().domainStrategy = if (preferIpv6) "UseIPv6v4" else "UseIPv4v6"
+                continue
+            }
 
             val resolvedIps = HttpUtil.resolveHostToIP(domain, preferIpv6)
             if (resolvedIps.isNullOrEmpty()) continue
@@ -1045,7 +1052,15 @@ object V2rayConfigManager {
     fun populateTlsSettings(streamSettings: StreamSettingsBean, profileItem: ProfileItem, sniExt: String?) {
         val streamSecurity = profileItem.security.orEmpty()
         val allowInsecure = profileItem.insecure == true
-        val sni = if (profileItem.sni.isNullOrEmpty()) sniExt else profileItem.sni
+        val sni = if (profileItem.sni.isNullOrEmpty()) {
+            when {
+                sniExt.isNotNullEmpty() && Utils.isDomainName(sniExt) -> sniExt
+                profileItem.server.isNotNullEmpty() && Utils.isDomainName(profileItem.server) -> profileItem.server
+                else -> sniExt
+            }
+        } else {
+            profileItem.sni
+        }
         val fingerprint = profileItem.fingerPrint
         val alpns = profileItem.alpn
         val publicKey = profileItem.publicKey
