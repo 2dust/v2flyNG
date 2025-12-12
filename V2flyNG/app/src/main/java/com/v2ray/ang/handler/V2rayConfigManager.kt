@@ -4,6 +4,7 @@ import android.content.Context
 import android.text.TextUtils
 import android.util.Log
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.R
 import com.v2ray.ang.dto.ConfigResult
 import com.v2ray.ang.dto.EConfigType
 import com.v2ray.ang.dto.NetworkType
@@ -15,6 +16,7 @@ import com.v2ray.ang.dto.V2rayConfig.OutboundBean.OutSettingsBean
 import com.v2ray.ang.dto.V2rayConfig.OutboundBean.StreamSettingsBean
 import com.v2ray.ang.dto.V2rayConfig.RoutingBean.RulesBean
 import com.v2ray.ang.extension.isNotNullEmpty
+import com.v2ray.ang.fmt.CustomFmt
 import com.v2ray.ang.fmt.HttpFmt
 import com.v2ray.ang.fmt.ShadowsocksFmt
 import com.v2ray.ang.fmt.SocksFmt
@@ -49,6 +51,27 @@ object V2rayConfigManager {
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "Failed to get V2ray config", e)
             return ConfigResult(false)
+        }
+    }
+
+    /**
+     * Generates a V2ray configuration from multiple server profiles.
+     *
+     * @param context The context of the caller.
+     * @param guidList A list of server GUIDs to be included in the generated configuration.
+     *                 Each GUID represents a unique server profile stored in the system.
+     * @return A V2rayConfig object containing the combined configuration of all specified servers,
+     *         or null if the operation fails (e.g., no valid configurations found, parsing errors)
+     */
+    fun genV2rayConfig(context: Context, guidList: List<String>): V2rayConfig? {
+        try {
+            val configList = guidList.mapNotNull { guid ->
+                MmkvManager.decodeServerConfig(guid)
+            }
+            return genV2rayMultipleConfig(context, configList)
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "Failed to generate V2ray config", e)
+            return null
         }
     }
 
@@ -140,6 +163,80 @@ object V2rayConfigManager {
         result.content = JsonUtil.toJsonPretty(v2rayConfig) ?: ""
         result.guid = guid
         return result
+    }
+
+    private fun genV2rayMultipleConfig(context: Context, configList: List<ProfileItem>): V2rayConfig? {
+        val validConfigs = configList.asSequence().filter { it.server.isNotNullEmpty() }
+            .filter { !Utils.isPureIpAddress(it.server!!) || Utils.isValidUrl(it.server!!) }
+            .filter { it.configType != EConfigType.CUSTOM }
+            .filter { it.configType != EConfigType.HYSTERIA2 }
+            .filter { config ->
+                if (config.subscriptionId.isEmpty()) {
+                    return@filter true
+                }
+                val subItem = MmkvManager.decodeSubscription(config.subscriptionId)
+                if (subItem?.intelligentSelectionFilter.isNullOrEmpty() || config.remarks.isEmpty()) {
+                    return@filter true
+                }
+                Regex(pattern = subItem?.intelligentSelectionFilter!!).containsMatchIn(input = config.remarks)
+            }.toList()
+
+        if (validConfigs.isEmpty()) {
+            Log.w(AppConfig.TAG, "All configs are invalid")
+            return null
+        }
+
+        val v2rayConfig = initV2rayConfig(context) ?: return null
+        v2rayConfig.log.loglevel = MmkvManager.decodeSettingsString(AppConfig.PREF_LOGLEVEL) ?: "warning"
+
+        val subIds = configList.map { it.subscriptionId }.toHashSet()
+        val remarks = if (subIds.size == 1 && subIds.first().isNotEmpty()) {
+            val sub = MmkvManager.decodeSubscription(subIds.first())
+            (sub?.remarks ?: "") + context.getString(R.string.intelligent_selection)
+        } else {
+            context.getString(R.string.intelligent_selection)
+        }
+
+        v2rayConfig.remarks = remarks
+
+        getInbounds(v2rayConfig)
+
+        v2rayConfig.outbounds.removeAt(0)
+        val outboundsList = mutableListOf<V2rayConfig.OutboundBean>()
+        var index = 0
+        for (config in validConfigs) {
+            index++
+            val outbound = convertProfile2Outbound(config) ?: continue
+            val ret = updateOutboundWithGlobalSettings(outbound)
+            if (!ret) continue
+            outbound.tag = "proxy-$index"
+            outboundsList.add(outbound)
+        }
+        outboundsList.addAll(v2rayConfig.outbounds)
+        v2rayConfig.outbounds = ArrayList(outboundsList)
+
+        getRouting(v2rayConfig)
+
+        getFakeDns(v2rayConfig)
+
+        getDns(v2rayConfig)
+
+        getBalance(v2rayConfig)
+
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED) == true) {
+            getCustomLocalDns(v2rayConfig)
+        }
+        if (MmkvManager.decodeSettingsBool(AppConfig.PREF_SPEED_ENABLED) != true) {
+            v2rayConfig.stats = null
+            v2rayConfig.policy = null
+        }
+
+        //Resolve and add to DNS Hosts
+        if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, "1") == "1") {
+            resolveOutboundDomainsToHosts(v2rayConfig)
+        }
+
+        return v2rayConfig
     }
 
     /**
@@ -373,27 +470,49 @@ object V2rayConfigManager {
                 )
             }
 
-            // DNS inbound
-            val remoteDns = SettingsManager.getRemoteDnsServers()
-            if (v2rayConfig.inbounds.none { e -> e.protocol == "dokodemo-door" && e.tag == "dns-in" }) {
-                val dnsInboundSettings = V2rayConfig.InboundBean.InSettingsBean(
-                    address = if (Utils.isPureIpAddress(remoteDns.first())) remoteDns.first() else AppConfig.DNS_PROXY,
-                    port = 53,
-                    network = "tcp,udp"
-                )
+            if (MmkvManager.decodeSettingsBool(AppConfig.PREF_USE_HEV_TUNNEL ,true) == false) {
 
-                val localDnsPort = Utils.parseInt(
-                    MmkvManager.decodeSettingsString(AppConfig.PREF_LOCAL_DNS_PORT),
-                    AppConfig.PORT_LOCAL_DNS.toInt()
+                // DNS inbound
+                val remoteDns = SettingsManager.getRemoteDnsServers()
+                if (v2rayConfig.inbounds.none { e -> e.protocol == "dokodemo-door" && e.tag == "dns-in" }) {
+                    val dnsInboundSettings = V2rayConfig.InboundBean.InSettingsBean(
+                        address = if (Utils.isPureIpAddress(remoteDns.first())) remoteDns.first() else AppConfig.DNS_PROXY,
+                        port = 53,
+                        network = "tcp,udp"
+                    )
+
+                    val localDnsPort = Utils.parseInt(
+                        MmkvManager.decodeSettingsString(AppConfig.PREF_LOCAL_DNS_PORT),
+                        AppConfig.PORT_LOCAL_DNS.toInt()
+                    )
+                    v2rayConfig.inbounds.add(
+                        V2rayConfig.InboundBean(
+                            tag = "dns-in",
+                            port = localDnsPort,
+                            listen = AppConfig.LOOPBACK,
+                            protocol = "dokodemo-door",
+                            settings = dnsInboundSettings,
+                            sniffing = null
+                        )
+                    )
+                }
+
+                // DNS routing tag
+                v2rayConfig.routing.rules.add(
+                    0, RulesBean(
+                        inboundTag = arrayListOf("dns-in"),
+                        outboundTag = "dns-out",
+                        domain = null
+                    )
                 )
-                v2rayConfig.inbounds.add(
-                    V2rayConfig.InboundBean(
-                        tag = "dns-in",
-                        port = localDnsPort,
-                        listen = AppConfig.LOOPBACK,
-                        protocol = "dokodemo-door",
-                        settings = dnsInboundSettings,
-                        sniffing = null
+            } else {
+                //hev-socks5-tunnel dns routing
+                v2rayConfig.routing.rules.add(
+                    0, RulesBean(
+                        inboundTag = arrayListOf("socks"),
+                        outboundTag = "dns-out",
+                        port = "53",
+                        type = "field"
                     )
                 )
             }
@@ -410,15 +529,6 @@ object V2rayConfigManager {
                     )
                 )
             }
-
-            // DNS routing tag
-            v2rayConfig.routing.rules.add(
-                0, RulesBean(
-                    inboundTag = arrayListOf("dns-in"),
-                    outboundTag = "dns-out",
-                    domain = null
-                )
-            )
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "Failed to configure custom local DNS", e)
             return false
@@ -465,18 +575,8 @@ object V2rayConfigManager {
                         address = domesticDns.first(),
                         domains = directDomain,
                         expectIPs = if (isCnRoutingMode) geoipCn else null,
-                        skipFallback = true
-                    )
-                )
-            }
-
-            if (Utils.isPureIpAddress(domesticDns.first())) {
-                v2rayConfig.routing.rules.add(
-                    0, RulesBean(
-                        outboundTag = AppConfig.TAG_DIRECT,
-                        port = "53",
-                        ip = arrayListOf(domesticDns.first()),
-                        domain = null
+                        skipFallback = true,
+                        tag = AppConfig.TAG_DOMESTIC_DNS
                     )
                 )
             }
@@ -517,20 +617,25 @@ object V2rayConfigManager {
             // DNS dns
             v2rayConfig.dns = V2rayConfig.DnsBean(
                 servers = servers,
-                hosts = hosts
+                hosts = hosts,
+                tag = AppConfig.TAG_DNS
             )
 
             // DNS routing
-            if (Utils.isPureIpAddress(remoteDns.first())) {
-                v2rayConfig.routing.rules.add(
-                    0, RulesBean(
-                        outboundTag = AppConfig.TAG_PROXY,
-                        port = "53",
-                        ip = arrayListOf(remoteDns.first()),
-                        domain = null
-                    )
+            v2rayConfig.routing.rules.add(
+                RulesBean(
+                    outboundTag = AppConfig.TAG_DIRECT,
+                    inboundTag = arrayListOf(AppConfig.TAG_DOMESTIC_DNS),
+                    domain = null
                 )
-            }
+            )
+            v2rayConfig.routing.rules.add(
+                RulesBean(
+                    outboundTag = AppConfig.TAG_PROXY,
+                    inboundTag = arrayListOf(AppConfig.TAG_DNS),
+                    domain = null
+                )
+            )
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "Failed to configure DNS", e)
             return false
@@ -742,6 +847,78 @@ object V2rayConfigManager {
     }
 
     /**
+     * Configures load balancing settings for the V2ray configuration.
+     *
+     * @param v2rayConfig The V2ray configuration object to be modified with balancing settings
+     */
+    private fun getBalance(v2rayConfig: V2rayConfig)
+    {
+        try {
+            v2rayConfig.routing.rules.forEach { rule ->
+                if (rule.outboundTag == "proxy") {
+                    rule.outboundTag = null
+                    rule.balancerTag = "proxy-round"
+                }
+            }
+
+            if (MmkvManager.decodeSettingsString(AppConfig.PREF_INTELLIGENT_SELECTION_METHOD, "0") == "0") {
+                val balancer = V2rayConfig.RoutingBean.BalancerBean(
+                    tag = "proxy-round",
+                    selector = listOf("proxy-"),
+                    strategy = V2rayConfig.RoutingBean.StrategyObject(
+                        type = "leastPing"
+                    )
+                )
+                v2rayConfig.routing.balancers = listOf(balancer)
+                v2rayConfig.observatory = V2rayConfig.ObservatoryObject(
+                    subjectSelector = listOf("proxy-"),
+                    probeUrl = MmkvManager.decodeSettingsString(AppConfig.PREF_DELAY_TEST_URL) ?: AppConfig.DELAY_TEST_URL,
+                    probeInterval = "3m",
+                    enableConcurrency = true
+                )
+            } else {
+                val balancer = V2rayConfig.RoutingBean.BalancerBean(
+                    tag = "proxy-round",
+                    selector = listOf("proxy-"),
+                    strategy = V2rayConfig.RoutingBean.StrategyObject(
+                        type = "leastLoad"
+                    )
+                )
+                v2rayConfig.routing.balancers = listOf(balancer)
+                v2rayConfig.burstObservatory = V2rayConfig.BurstObservatoryObject(
+                    subjectSelector = listOf("proxy-"),
+                    pingConfig = V2rayConfig.BurstObservatoryObject.PingConfigObject(
+                        destination = MmkvManager.decodeSettingsString(AppConfig.PREF_DELAY_TEST_URL) ?: AppConfig.DELAY_TEST_URL,
+                        interval = "5m",
+                        sampling = 2,
+                        timeout = "30s"
+                    )
+                )
+            }
+
+            if (v2rayConfig.routing.domainStrategy == "IPIfNonMatch") {
+                v2rayConfig.routing.rules.add(
+                    RulesBean(
+                        ip = arrayListOf("0.0.0.0/0", "::/0"),
+                        balancerTag = "proxy-round",
+                        type = "field"
+                    )
+                )
+            } else {
+                v2rayConfig.routing.rules.add(
+                    RulesBean(
+                        network = "tcp,udp",
+                        balancerTag = "proxy-round",
+                        type = "field"
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(AppConfig.TAG, "Failed to configure balance", e)
+        }
+    }
+
+    /**
      * Updates the outbound with fragment settings for traffic optimization.
      *
      * Configures packet fragmentation for TLS and REALITY protocols if enabled.
@@ -833,14 +1010,22 @@ object V2rayConfigManager {
             if (domain.isNullOrEmpty()) continue
 
             if (newHosts.containsKey(domain)) {
-                item.ensureSockopt().domainStrategy = if (preferIpv6) "UseIPv6v4" else "UseIPv4v6"
+                item.ensureSockopt().domainStrategy = "UseIP"
+                item.ensureSockopt().happyEyeballs = StreamSettingsBean.happyEyeballsBean(
+                    prioritizeIPv6 = preferIpv6,
+                    interleave = 2
+                )
                 continue
             }
 
             val resolvedIps = HttpUtil.resolveHostToIP(domain, preferIpv6)
             if (resolvedIps.isNullOrEmpty()) continue
 
-            item.ensureSockopt().domainStrategy = if (preferIpv6) "UseIPv6v4" else "UseIPv4v6"
+            item.ensureSockopt().domainStrategy = "UseIP"
+            item.ensureSockopt().happyEyeballs = StreamSettingsBean.happyEyeballsBean(
+                prioritizeIPv6 = preferIpv6,
+                interleave = 2
+            )
             newHosts[domain] = if (resolvedIps.size == 1) {
                 resolvedIps[0]
             } else {
@@ -1066,6 +1251,7 @@ object V2rayConfigManager {
         val publicKey = profileItem.publicKey
         val shortId = profileItem.shortId
         val spiderX = profileItem.spiderX
+        val mldsa65Verify = profileItem.mldsa65Verify
 
         streamSettings.security = if (streamSecurity.isEmpty()) null else streamSecurity
         if (streamSettings.security == null) return
@@ -1077,6 +1263,7 @@ object V2rayConfigManager {
             publicKey = if (publicKey.isNullOrEmpty()) null else publicKey,
             shortId = if (shortId.isNullOrEmpty()) null else shortId,
             spiderX = if (spiderX.isNullOrEmpty()) null else spiderX,
+            mldsa65Verify = if (mldsa65Verify.isNullOrEmpty()) null else mldsa65Verify,
         )
         if (streamSettings.security == AppConfig.TLS) {
             streamSettings.tlsSettings = tlsSetting

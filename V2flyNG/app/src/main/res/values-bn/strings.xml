@@ -80,6 +80,7 @@
     <string name="server_lab_preshared_key">PreSharedKey(optional)</string>
     <string name="server_lab_short_id" translatable="false">শর্ট আইডি</string>
     <string name="server_lab_spider_x" translatable="false">SpiderX</string>
+    <string name="server_lab_mldsa65_verify">Mldsa65Verify</string>
     <string name="server_lab_secret_key" translatable="false">সিক্রেট কী</string>
     <string name="server_lab_reserved">সংরক্ষিত (ঐচ্ছিক)</string>
     <string name="server_lab_local_address">স্থানীয় ঠিকানা (ঐচ্ছিক IPv4/IPv6, কমা দ্বারা পৃথক করা)</string>
@@ -105,8 +106,8 @@
     <string name="server_lab_port_hop">Port Hopping</string>
     <string name="server_lab_port_hop_interval">Port Hopping Interval</string>
     <string name="server_lab_stream_pinsha256">pinSHA256</string>
-    <string name="server_lab_bandwidth_down">Bandwidth down (units)</string>
-    <string name="server_lab_bandwidth_up">Bandwidth up (units)</string>
+    <string name="server_lab_bandwidth_down">Bandwidth down (Supported units: k/m/g/t)</string>
+    <string name="server_lab_bandwidth_up">Bandwidth up (Supported units: k/m/g/t)</string>
     <string name="server_lab_xhttp_mode">XHTTP Mode</string>
     <string name="server_lab_xhttp_extra">XHTTP Extra raw JSON, format: { XHTTPObject }</string>
 
@@ -183,6 +184,7 @@
     <string name="title_pref_vpn_bypass_lan">Does VPN bypass LAN</string>
 
     <string name="title_pref_vpn_interface_address">VPN Interface Address</string>
+    <string name="title_pref_vpn_mtu">VPN MTU (default 1500)</string>
 
     <string name="title_pref_domestic_dns">ঘরোয়া DNS (ঐচ্ছিক)</string>
     <string name="summary_pref_domestic_dns">DNS</string>
@@ -247,6 +249,10 @@
     <string name="title_language">ভাষা</string>
     <string name="title_ui_settings">ইউআই সেটিংস</string>
     <string name="title_pref_ui_mode_night">ইউআই মোড সেটিংস</string>
+    <string name="title_pref_use_hev_tunnel">Enable New TUN Feature</string>
+    <string name="summary_pref_use_hev_tunnel">When enabled, TUN will use hev-socks5-tunnel; otherwise, it will use badvpn-tun2socks.</string>
+    <string name="title_pref_hev_tunnel_loglevel">Hev Tun Log Level</string>
+    <string name="title_pref_hev_tunnel_rw_timeout">Hev Tun Read/Write Timeout (ms, default 300000)</string>
 
     <string name="title_logcat">লগক্যাট</string>
     <string name="logcat_copy">কপি করুন</string>
@@ -259,6 +265,7 @@
     <string name="title_sub_setting">সাবস্ক্রিপশন গ্রুপ সেটিং</string>
     <string name="sub_setting_remarks">মন্তব্য</string>
     <string name="sub_setting_url">ঐচ্ছিক URL</string>
+    <string name="sub_setting_user_agent">User Agent</string>
     <string name="sub_setting_filter">Remarks regular filter</string>
     <string name="sub_setting_enable">আপডেট সক্রিয় করুন</string>
     <string name="sub_auto_update">স্বয়ংক্রিয় আপডেট সক্রিয় করুন</string>
@@ -269,6 +276,7 @@
     <string name="title_sub_update">সাবস্ক্রিপশন আপডেট</string>
     <string name="title_ping_all_server">সব কনফিগারেশন TCPing</string>
     <string name="title_real_ping_all_server">সব কনফিগারেশন প্রকৃত বিলম্ব</string>
+    <string name="title_create_intelligent_selection_all_server">Creating Intelligent Selection Current Group Configuration</string>
     <string name="title_user_asset_setting">Asset files</string>
     <string name="title_sort_by_test_results">টেস্ট ফলাফল দ্বারা সাজানো</string>
     <string name="title_filter_config">কনফিগারেশন ফাইল ফিল্টার করুন</string>
@@ -368,5 +376,13 @@
         <item>Resolve and add to DNS Hosts</item>
         <item>Resolve and replace domain</item>
     </string-array>
+    <string name="intelligent_selection">Intelligent Selection</string>
+    <string name="sub_setting_intelligent_selection_filter">Remarks Intelligent Selection regular filter</string>
+    <string name="title_intelligent_selection_method">Intelligent Selection Method</string>
+    <string-array name="intelligent_selection_method">
+        <item>Least Ping</item>
+        <item>Least Load</item>
+    </string-array>
+    <string name="pre_resolving_domain">Pre-resolving domain…</string>
 
 </resources>

@@ -245,7 +245,14 @@ data class V2rayConfig(
                 var tproxy: String? = null,
                 var mark: Int? = null,
                 var dialerProxy: String? = null,
-                var domainStrategy: String? = null
+                var domainStrategy: String? = null,
+                var happyEyeballs: happyEyeballsBean? = null,
+                )
+            data class happyEyeballsBean(
+                var prioritizeIPv6: Boolean? = null,
+                var maxConcurrentTry: Int? = 4,
+                var tryDelayMs: Int? = 250, // ms
+                var interleave: Int? = null,
             )
 
             data class TlsSettingsBean(
@@ -264,7 +271,8 @@ data class V2rayConfig(
                 val show: Boolean = false,
                 var publicKey: String? = null,
                 var shortId: String? = null,
-                var spiderX: String? = null
+                var spiderX: String? = null,
+                var mldsa65Verify: String? = null
             )
 
             data class QuicSettingBean(
@@ -489,6 +497,7 @@ data class V2rayConfig(
             var expectIPs: List<String>? = null,
             val clientIp: String? = null,
             val skipFallback: Boolean? = null,
+            val tag: String? = null,
         )
     }
 
@@ -496,14 +505,14 @@ data class V2rayConfig(
         var domainStrategy: String,
         var domainMatcher: String? = null,
         var rules: ArrayList<RulesBean>,
-        val balancers: List<Any>? = null
+        var balancers: List<BalancerBean>? = null
     ) {
 
         data class RulesBean(
             var type: String = "field",
             var ip: ArrayList<String>? = null,
             var domain: ArrayList<String>? = null,
-            var outboundTag: String = "",
+            var outboundTag: String? = null,
             var balancerTag: String? = null,
             var port: String? = null,
             val sourcePort: String? = null,
@@ -514,6 +523,32 @@ data class V2rayConfig(
             val protocol: List<String>? = null,
             val attrs: String? = null,
             val domainMatcher: String? = null
+        )
+
+        data class BalancerBean(
+            val tag: String,
+            val selector: List<String>,
+            val fallbackTag: String? = null,
+            val strategy: StrategyObject? = null
+        )
+
+        data class StrategyObject(
+            val type: String = "random", // "random" | "roundRobin" | "leastPing" | "leastLoad"
+            val settings: StrategySettingsObject? = null
+        )
+
+        data class StrategySettingsObject(
+            val expected: Int? = null,
+            val maxRTT: String? = null,
+            val tolerance: Double? = null,
+            val baselines: List<String>? = null,
+            val costs: List<CostObject>? = null
+        )
+
+        data class CostObject(
+            val regexp: Boolean = false,
+            val match: String,
+            val value: Double
         )
     }
 
@@ -529,6 +564,26 @@ data class V2rayConfig(
             val statsUserUplink: Boolean? = null,
             val statsUserDownlink: Boolean? = null,
             var bufferSize: Int? = null
+        )
+    }
+
+    data class ObservatoryObject(
+        val subjectSelector: List<String>,
+        val probeUrl: String,
+        val probeInterval: String,
+        val enableConcurrency: Boolean = false
+    )
+
+    data class BurstObservatoryObject(
+        val subjectSelector: List<String>,
+        val pingConfig: PingConfigObject
+    ) {
+        data class PingConfigObject(
+            val destination: String,
+            val connectivity: String? = null,
+            val interval: String,
+            val sampling: Int,
+            val timeout: String? = null
         )
     }
 

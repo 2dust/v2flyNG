@@ -71,7 +71,7 @@ object AngConfigManager {
             if (sb.count() > 0) {
                 Utils.setClipboard(context, sb.toString())
             }
-            return sb.lines().count()
+            return sb.lines().count() - 1
         } catch (e: Exception) {
             Log.e(AppConfig.TAG, "Failed to share non-custom configs to clipboard", e)
             return -1
@@ -425,17 +425,18 @@ object AngConfigManager {
                 }
             }
             Log.i(AppConfig.TAG, url)
+            val userAgent = it.second.userAgent
 
             var configText = try {
                 val httpPort = SettingsManager.getHttpPort()
-                HttpUtil.getUrlContentWithUserAgent(url, 15000, httpPort)
+                HttpUtil.getUrlContentWithUserAgent(url, userAgent, 15000, httpPort)
             } catch (e: Exception) {
                 Log.e(AppConfig.ANG_PACKAGE, "Update subscription: proxy not ready or other error", e)
                 ""
             }
             if (configText.isEmpty()) {
                 configText = try {
-                    HttpUtil.getUrlContentWithUserAgent(url)
+                    HttpUtil.getUrlContentWithUserAgent(url, userAgent)
                 } catch (e: Exception) {
                     Log.e(AppConfig.TAG, "Update subscription: Failed to get URL content with user agent", e)
                     ""
@@ -489,5 +490,32 @@ object AngConfigManager {
         subItem.url = url
         MmkvManager.encodeSubscription("", subItem)
         return 1
+    }
+
+    /**
+     * Creates an intelligent selection configuration based on multiple server configurations.
+     *
+     * @param context The application context used for configuration generation.
+     * @param guidList The list of server GUIDs to be included in the intelligent selection.
+     *                 Each GUID represents a server configuration that will be combined.
+     * @param subid The subscription ID to associate with the generated configuration.
+     *              This helps organize the configuration under a specific subscription.
+     * @return The GUID key of the newly created intelligent selection configuration,
+     *         or null if the operation fails (e.g., empty guidList or configuration parsing error).
+     */
+    fun createIntelligentSelection(
+        context: Context,
+        guidList: List<String>,
+        subid: String
+    ): String? {
+        if (guidList.isEmpty()) {
+            return null
+        }
+        val result = V2rayConfigManager.genV2rayConfig(context, guidList) ?: return null
+        val config = CustomFmt.parse(JsonUtil.toJson(result)) ?: return null
+        config.subscriptionId = subid
+        val key = MmkvManager.encodeServerConfig("", config)
+        MmkvManager.encodeServerRaw(key, JsonUtil.toJsonPretty(result) ?: "")
+        return key
     }
 }

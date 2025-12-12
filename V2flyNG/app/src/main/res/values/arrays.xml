@@ -118,6 +118,13 @@
         <item>Proxy only</item>
     </string-array>
 
+    <string-array name="hev_tunnel_loglevel" translatable="false">
+        <item>error</item>
+        <item>warn</item>
+        <item>info</item>
+        <item>debug</item>
+    </string-array>
+
     <string-array name="flows" translatable="false">
         <item></item>
         <item>xtls-rprx-vision</item>
@@ -206,6 +213,11 @@
         <item>0</item>
         <item>1</item>
         <item>2</item>
+    </string-array>
+
+    <string-array name="intelligent_selection_method_value" translatable="false">
+        <item>0</item>
+        <item>1</item>
     </string-array>
 
 </resources>

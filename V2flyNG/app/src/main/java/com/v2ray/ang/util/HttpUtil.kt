@@ -12,7 +12,9 @@ import java.net.IDN
 import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.MalformedURLException
 import java.net.Proxy
+import java.net.URI
 import java.net.URL
 
 object HttpUtil {
@@ -126,7 +128,7 @@ object HttpUtil {
      * @throws IOException If an I/O error occurs.
      */
     @Throws(IOException::class)
-    fun getUrlContentWithUserAgent(url: String?, timeout: Int = 15000, httpPort: Int = 0): String {
+    fun getUrlContentWithUserAgent(url: String?, userAgent: String?,  timeout: Int = 15000, httpPort: Int = 0): String {
         var currentUrl = url
         var redirects = 0
         val maxRedirects = 3
@@ -134,13 +136,18 @@ object HttpUtil {
         while (redirects++ < maxRedirects) {
             if (currentUrl == null) continue
             val conn = createProxyConnection(currentUrl, httpPort, timeout, timeout) ?: continue
-            conn.setRequestProperty("User-agent", "v2rayNG/${BuildConfig.VERSION_NAME}")
+            val finalUserAgent = if (userAgent.isNullOrBlank()) {
+                "v2rayNG/${BuildConfig.VERSION_NAME}"
+            } else {
+                userAgent
+            }
+            conn.setRequestProperty("User-agent", finalUserAgent)
             conn.connect()
 
             val responseCode = conn.responseCode
             when (responseCode) {
                 in 300..399 -> {
-                    val location = conn.getHeaderField("Location")
+                    val location = resolveLocation(conn)
                     conn.disconnect()
                     if (location.isNullOrEmpty()) {
                         throw IOException("Redirect location not found")
@@ -218,6 +225,30 @@ object HttpUtil {
             return null
         }
         return conn
+    }
+
+    // Returns absolute URL string location header sets
+    fun resolveLocation(conn: HttpURLConnection): String? {
+        val raw = conn.getHeaderField("Location")?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+
+        // Try check url is relative or absolute
+        return try {
+            val locUri = URI(raw)
+            val baseUri = conn.url.toURI()
+            val resolved = if (locUri.isAbsolute) locUri else baseUri.resolve(locUri)
+            resolved.toURL().toString()
+        } catch (_: Exception) {
+            // Fallback: url resolver, also should handles //host/...
+            try {
+                URL(raw).toString() // absolute with protocol
+            } catch (_: MalformedURLException) {
+                try {
+                    URL(conn.url, raw).toString()
+                } catch (_: MalformedURLException) {
+                    null
+                }
+            }
+        }
     }
 }
 

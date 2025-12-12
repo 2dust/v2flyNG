@@ -80,6 +80,7 @@
     <string name="server_lab_preshared_key">PreSharedKey (optional)</string>
     <string name="server_lab_short_id">ShortId</string>
     <string name="server_lab_spider_x">SpiderX</string>
+    <string name="server_lab_mldsa65_verify">Mldsa65Verify</string>
     <string name="server_lab_secret_key">SecretKey</string>
     <string name="server_lab_reserved">Reserved (可選，逗號隔開)</string>
     <string name="server_lab_local_address">本機位址 (可選 IPv4/IPv6，逗號隔開)</string>
@@ -105,8 +106,8 @@
     <string name="server_lab_port_hop">跳躍連接埠 (會覆蓋伺服器連接埠)</string>
     <string name="server_lab_port_hop_interval">連接埠跳躍間隔 (秒)</string>
     <string name="server_lab_stream_pinsha256">SHA256 憑證指紋</string>
-    <string name="server_lab_bandwidth_down">頻寬下行 (單位)</string>
-    <string name="server_lab_bandwidth_up">頻寬上行 (單位)</string>
+    <string name="server_lab_bandwidth_down">頻寬下行 (支持的單位 k/m/g/t)</string>
+    <string name="server_lab_bandwidth_up">頻寬上行 (支持的單位 k/m/g/t)</string>
     <string name="server_lab_xhttp_mode">XHTTP 模式</string>
     <string name="server_lab_xhttp_extra">XHTTP Extra 原始 JSON，格式： { XHTTPObject }</string>
 
@@ -182,6 +183,7 @@
     <string name="title_pref_vpn_bypass_lan">VPN 是否繞過區域網</string>
 
     <string name="title_pref_vpn_interface_address">VPN 介面位址</string>
+    <string name="title_pref_vpn_mtu">VPN MTU (預設 1500)</string>
 
     <string name="summary_pref_domestic_dns">DNS</string>
     <string name="title_pref_domestic_dns">境内 DNS (可选)</string>
@@ -245,6 +247,10 @@
     <string name="title_language">語言</string>
     <string name="title_ui_settings">介面顏色設定</string>
     <string name="title_pref_ui_mode_night">介面顯示模式</string>
+    <string name="title_pref_use_hev_tunnel">啟用新 TUN 功能</string>
+    <string name="summary_pref_use_hev_tunnel">選擇啟用後，TUN 將使用 hev-socks5-tunnel，否則使用 badvpn-tun2socks。</string>
+    <string name="title_pref_hev_tunnel_loglevel">HevTun 日誌級別</string>
+    <string name="title_pref_hev_tunnel_rw_timeout">HevTun 讀寫逾時 (ms, 預設 300000)</string>
 
     <string name="title_logcat">Logcat</string>
     <string name="logcat_copy">複製</string>
@@ -257,6 +263,7 @@
     <string name="title_sub_setting">訂閱分組設定</string>
     <string name="sub_setting_remarks">備註</string>
     <string name="sub_setting_url">可選位址(url)</string>
+    <string name="sub_setting_user_agent">User Agent</string>
     <string name="sub_setting_filter">別名正規過濾</string>
     <string name="sub_setting_enable">啟用更新</string>
     <string name="sub_auto_update">啟用自動更新</string>
@@ -267,6 +274,7 @@
     <string name="title_sub_update">更新目前群組訂閱</string>
     <string name="title_ping_all_server">偵測目前群組設定 Tcping</string>
     <string name="title_real_ping_all_server">偵測目前群組設定真延遲</string>
+    <string name="title_create_intelligent_selection_all_server">Creating Intelligent Selection Current Group Configuration</string>
     <string name="title_user_asset_setting">資源檔案</string>
     <string name="title_sort_by_test_results">依偵測結果排序</string>
     <string name="title_filter_config">過濾設定</string>
@@ -369,5 +377,13 @@
         <item>解析後加入 DNS Hosts</item>
         <item>解析後替換原網域名稱</item>
     </string-array>
+    <string name="intelligent_selection">Intelligent Selection</string>
+    <string name="sub_setting_intelligent_selection_filter">Remarks Intelligent Selection regular filter</string>
+    <string name="title_intelligent_selection_method">Intelligent Selection Method</string>
+    <string-array name="intelligent_selection_method">
+        <item>Least Ping</item>
+        <item>Least Load</item>
+    </string-array>
+    <string name="pre_resolving_domain">Pre-resolving domain…</string>
 
 </resources>

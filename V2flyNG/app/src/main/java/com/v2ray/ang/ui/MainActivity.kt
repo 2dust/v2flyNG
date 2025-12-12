@@ -38,7 +38,7 @@ import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MigrateManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.helper.SimpleItemTouchHelperCallback
-import com.v2ray.ang.service.V2RayServiceManager
+import com.v2ray.ang.handler.V2RayServiceManager
 import com.v2ray.ang.util.Utils
 import com.v2ray.ang.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
@@ -358,10 +358,10 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
             true
         }
 
-        R.id.import_manually_wireguard -> {
-            importManually(EConfigType.WIREGUARD.value)
-            true
-        }
+//        R.id.import_manually_wireguard -> {
+//            importManually(EConfigType.WIREGUARD.value)
+//            true
+//        }
 
         R.id.import_manually_hysteria2 -> {
             importManually(EConfigType.HYSTERIA2.value)
@@ -382,6 +382,14 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         R.id.real_ping_all -> {
             toast(getString(R.string.connection_test_testing_count, mainViewModel.serversCache.count()))
             mainViewModel.testAllRealPing()
+            true
+        }
+
+        R.id.intelligent_selection_all -> {
+            if (MmkvManager.decodeSettingsString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, "1") != "0") {
+                toast(getString(R.string.pre_resolving_domain))
+            }
+            mainViewModel.createIntelligentSelectionAll()
             true
         }
 
